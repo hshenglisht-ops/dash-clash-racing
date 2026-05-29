@@ -590,19 +590,14 @@ function HostControl({ game, setGame }: { game: Game; setGame: (g: Game) => void
                       <span className="ml-auto text-xs text-green-400">✅ 정답</span>
                     </div>
                   ))}
-                  {allAnswers
-                    .filter((b) => !b.is_correct)
-                    .map((b) => (
-                      <div
-                        key={b.team_id}
-                        className="flex items-center gap-2 rounded-lg bg-secondary/50 px-3 py-2 opacity-60"
-                      >
-                        <span style={{ color: teamColor(b.team_id) }} className="font-bold">
-                          {teamName(b.team_id)}
-                        </span>
-                        <span className="ml-auto text-xs text-red-400">❌ 오답</span>
-                      </div>
-                    ))}
+                  {allAnswers.filter((b) => !b.is_correct).map((b) => (
+                    <div key={b.team_id} className="flex items-center gap-2 rounded-lg bg-secondary/50 px-3 py-2 opacity-60">
+                      <span style={{ color: teamColor(b.team_id) }} className="font-bold">
+                        {teamName(b.team_id)}
+                      </span>
+                      <span className="ml-auto text-xs text-red-400">❌ 오답</span>
+                    </div>
+                  ))}
                 </div>
                 <button
                   onClick={closeQuestion}
