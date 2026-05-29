@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as JoinRouteImport } from './routes/join'
 import { Route as HostRouteImport } from './routes/host'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as TeamGameCodeTeamIdRouteImport } from './routes/team.$gameCode.$teamId'
 
 const JoinRoute = JoinRouteImport.update({
   id: '/join',
@@ -28,35 +29,44 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const TeamGameCodeTeamIdRoute = TeamGameCodeTeamIdRouteImport.update({
+  id: '/team/$gameCode/$teamId',
+  path: '/team/$gameCode/$teamId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/host': typeof HostRoute
   '/join': typeof JoinRoute
+  '/team/$gameCode/$teamId': typeof TeamGameCodeTeamIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/host': typeof HostRoute
   '/join': typeof JoinRoute
+  '/team/$gameCode/$teamId': typeof TeamGameCodeTeamIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/host': typeof HostRoute
   '/join': typeof JoinRoute
+  '/team/$gameCode/$teamId': typeof TeamGameCodeTeamIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/host' | '/join'
+  fullPaths: '/' | '/host' | '/join' | '/team/$gameCode/$teamId'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/host' | '/join'
-  id: '__root__' | '/' | '/host' | '/join'
+  to: '/' | '/host' | '/join' | '/team/$gameCode/$teamId'
+  id: '__root__' | '/' | '/host' | '/join' | '/team/$gameCode/$teamId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   HostRoute: typeof HostRoute
   JoinRoute: typeof JoinRoute
+  TeamGameCodeTeamIdRoute: typeof TeamGameCodeTeamIdRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -82,6 +92,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/team/$gameCode/$teamId': {
+      id: '/team/$gameCode/$teamId'
+      path: '/team/$gameCode/$teamId'
+      fullPath: '/team/$gameCode/$teamId'
+      preLoaderRoute: typeof TeamGameCodeTeamIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -89,6 +106,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   HostRoute: HostRoute,
   JoinRoute: JoinRoute,
+  TeamGameCodeTeamIdRoute: TeamGameCodeTeamIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
