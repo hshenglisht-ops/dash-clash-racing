@@ -13,7 +13,13 @@ import {
   type BettingCard,
   type Mascot,
 } from "@/lib/game";
-import { CHARACTERS, MASCOT_ORDER, ACTION_CARD_INFO, type MascotName, type ActionCardType } from "@/lib/characters";
+import {
+  CHARACTERS,
+  MASCOT_ORDER,
+  ACTION_CARD_INFO,
+  type MascotName,
+  type ActionCardType,
+} from "@/lib/characters";
 
 export const Route = createFileRoute("/team/$gameCode/$teamId")({
   head: () => ({ meta: [{ title: "조별 화면 — DASH & CLASH" }] }),
@@ -62,13 +68,8 @@ function TeamPage() {
     setActionCards((a as ActionCard[]) ?? []);
   }, []);
 
-  useEffect(() => {
-    refreshGame();
-    refreshTeam();
-  }, [refreshGame, refreshTeam]);
-  useEffect(() => {
-    if (game?.id) refreshAux(game.id);
-  }, [game?.id, refreshAux]);
+  useEffect(() => { refreshGame(); refreshTeam(); }, [refreshGame, refreshTeam]);
+  useEffect(() => { if (game?.id) refreshAux(game.id); }, [game?.id, refreshAux]);
 
   useRealtime("games", game?.id, refreshGame);
   useRealtime("teams", game?.id, refreshTeam);
@@ -101,9 +102,7 @@ function TeamPage() {
     if (rank !== -1) setMyRank(rank + 1);
   }, [activeQ, game, teamId]);
 
-  useEffect(() => {
-    checkMyRank();
-  }, [checkMyRank]);
+  useEffect(() => { checkMyRank(); }, [checkMyRank]);
   useRealtime("buzzer_events", game?.id, checkMyRank);
 
   async function submitAnswer(answer: string) {
@@ -153,16 +152,14 @@ function TeamPage() {
     if (!game || game.current_turn_team_id !== teamId) return;
     setSelectedCard(card);
     const unusedQ = questions.find((q) => !q.is_used) ?? null;
-    if (!unusedQ) {
-      toast.error("남은 문제가 없습니다");
-      return;
-    }
+    if (!unusedQ) { toast.error("남은 문제가 없습니다"); return; }
     await supabase.from("action_cards").update({ linked_question_id: unusedQ.id }).eq("id", card.id);
     await supabase.from("games").update({ current_turn_team_id: teamId }).eq("id", game.id);
     toast.success("카드 선택! 선생님이 퀴즈를 냅니다.");
   }
 
-  const mascotName = (id: string): MascotName => (mascots.find((m) => m.id === id)?.name as MascotName) ?? "CHILI";
+  const mascotName = (id: string): MascotName =>
+    (mascots.find((m) => m.id === id)?.name as MascotName) ?? "CHILI";
   const isMyTurn = game?.current_turn_team_id === teamId;
   const myCards = actionCards.filter((c) => c.owner_team_id === teamId && !c.is_in_deck);
   const deckCards = actionCards.filter((c) => c.is_in_deck && !c.is_revealed);
@@ -170,7 +167,11 @@ function TeamPage() {
   const canBet = myAnswerCorrect === true; // 정답자만 베팅 가능
 
   if (!game || !team) {
-    return <div className="flex min-h-screen items-center justify-center text-muted-foreground">불러오는 중...</div>;
+    return (
+      <div className="flex min-h-screen items-center justify-center text-muted-foreground">
+        불러오는 중...
+      </div>
+    );
   }
 
   return (
@@ -216,11 +217,8 @@ function TeamPage() {
                     const choiceText = activeQ[choiceKey] as string;
                     const colors = { A: "bg-blue-600", B: "bg-orange-500", C: "bg-green-600", D: "bg-red-600" };
                     return (
-                      <button
-                        key={ans}
-                        onClick={() => submitAnswer(ans)}
-                        className={`${colors[ans]} rounded-2xl p-5 font-display text-xl text-white shadow-[0_6px_0_0_rgba(0,0,0,0.3)] transition-transform hover:-translate-y-0.5 active:translate-y-0.5`}
-                      >
+                      <button key={ans} onClick={() => submitAnswer(ans)}
+                        className={`${colors[ans]} rounded-2xl p-5 font-display text-xl text-white shadow-[0_6px_0_0_rgba(0,0,0,0.3)] transition-transform hover:-translate-y-0.5 active:translate-y-0.5`}>
                         <span className="block text-sm opacity-70">{ans}</span>
                         {choiceText}
                       </button>
@@ -231,14 +229,18 @@ function TeamPage() {
 
               {/* 답한 후 */}
               {alreadyAnswered && (
-                <div
-                  className={`rounded-2xl border-2 p-6 text-center ${myAnswerCorrect ? "border-green-500 bg-green-500/20" : "border-red-500 bg-red-500/20"}`}
-                >
-                  <p className="font-display text-4xl">{myAnswerCorrect ? "✅ 정답!" : "❌ 오답"}</p>
+                <div className={`rounded-2xl border-2 p-6 text-center ${myAnswerCorrect ? "border-green-500 bg-green-500/20" : "border-red-500 bg-red-500/20"}`}>
+                  <p className="font-display text-4xl">
+                    {myAnswerCorrect ? "✅ 정답!" : "❌ 오답"}
+                  </p>
                   {myAnswerCorrect && myRank && (
-                    <p className="mt-2 font-display text-2xl text-primary">정답 {myRank}등!</p>
+                    <p className="mt-2 font-display text-2xl text-primary">
+                      정답 {myRank}등!
+                    </p>
                   )}
-                  {myAnswerCorrect && <p className="mt-1 text-sm text-muted-foreground">베팅카드를 선점하세요!</p>}
+                  {myAnswerCorrect && (
+                    <p className="mt-1 text-sm text-muted-foreground">베팅카드를 선점하세요!</p>
+                  )}
                   {!myAnswerCorrect && (
                     <p className="mt-2 text-sm text-muted-foreground">이번 문제는 베팅할 수 없어요.</p>
                   )}
@@ -269,17 +271,12 @@ function TeamPage() {
                     <div key={mn} className="rounded-xl border border-border bg-card p-2">
                       <div className="mb-1 flex items-center gap-2">
                         <img src={CHARACTERS[mn].image} className="h-6 w-6" alt={mn} />
-                        <span className="font-display" style={{ color: CHARACTERS[mn].color }}>
-                          {mn}
-                        </span>
+                        <span className="font-display" style={{ color: CHARACTERS[mn].color }}>{mn}</span>
                       </div>
                       <div className="flex flex-wrap gap-1">
                         {cards.map((c) => (
-                          <button
-                            key={c.id}
-                            onClick={() => claimBetting(c)}
-                            className="rounded-md bg-secondary px-2 py-1 text-xs font-bold transition hover:bg-primary hover:text-primary-foreground"
-                          >
+                          <button key={c.id} onClick={() => claimBetting(c)}
+                            className="rounded-md bg-secondary px-2 py-1 text-xs font-bold transition hover:bg-primary hover:text-primary-foreground">
                             {c.target_rank}등 {c.is_risky ? "🔥RISKY" : "🛡️SAFE"}
                           </button>
                         ))}
@@ -296,13 +293,11 @@ function TeamPage() {
             <div className="mt-4 rounded-xl border border-border bg-card p-3">
               <p className="mb-2 font-display text-sm text-primary">✅ 내 베팅카드</p>
               <div className="flex flex-wrap gap-1">
-                {betting
-                  .filter((b) => b.team_id === teamId)
-                  .map((c) => (
-                    <div key={c.id} className="rounded-md bg-primary/20 px-2 py-1 text-xs font-bold text-primary">
-                      {mascotName(c.mascot_id)} {c.target_rank}등 {c.is_risky ? "RISKY" : "SAFE"}
-                    </div>
-                  ))}
+                {betting.filter((b) => b.team_id === teamId).map((c) => (
+                  <div key={c.id} className="rounded-md bg-primary/20 px-2 py-1 text-xs font-bold text-primary">
+                    {mascotName(c.mascot_id)} {c.target_rank}등 {c.is_risky ? "RISKY" : "SAFE"}
+                  </div>
+                ))}
               </div>
             </div>
           )}
@@ -316,55 +311,39 @@ function TeamPage() {
           <p className="mb-4 text-sm text-muted-foreground">선생님이 문제를 낼 때 정답을 맞히면 액션카드를 받습니다!</p>
           <div className="mb-4 rounded-xl border border-border bg-card p-4">
             <p className="mb-2 font-display text-lg">🃏 내 액션카드 ({myCards.length}장)</p>
-            {myCards.length === 0 ? (
-              <p className="text-sm text-muted-foreground">선생님의 퀴즈를 맞혀서 카드를 획득하세요!</p>
-            ) : (
-              myCards.map((c) => {
+            {myCards.length === 0
+              ? <p className="text-sm text-muted-foreground">선생님의 퀴즈를 맞혀서 카드를 획득하세요!</p>
+              : myCards.map((c) => {
                 const info = ACTION_CARD_INFO[c.card_type as ActionCardType];
                 const mn = mascotName(c.target_mascot_id);
                 return (
-                  <div
-                    key={c.id}
-                    className="mb-2 flex items-center gap-3 rounded-lg border border-border bg-secondary p-3"
-                  >
+                  <div key={c.id} className="mb-2 flex items-center gap-3 rounded-lg border border-border bg-secondary p-3">
                     <span className="text-2xl">{info?.emoji}</span>
                     <div className="flex-1">
                       <p className="font-bold">{info?.label}</p>
                       <p className="text-xs text-muted-foreground">{info?.desc}</p>
-                      <p className="text-xs font-bold" style={{ color: CHARACTERS[mn].color }}>
-                        대상: {mn}
-                      </p>
+                      <p className="text-xs font-bold" style={{ color: CHARACTERS[mn].color }}>대상: {mn}</p>
                     </div>
-                    <button
-                      onClick={() => addToDeck(c)}
-                      className="rounded-lg bg-primary px-3 py-2 text-sm font-bold text-primary-foreground hover:opacity-80"
-                    >
+                    <button onClick={() => addToDeck(c)}
+                      className="rounded-lg bg-primary px-3 py-2 text-sm font-bold text-primary-foreground hover:opacity-80">
                       덱에 추가
                     </button>
                   </div>
                 );
-              })
-            )}
+              })}
           </div>
           <div className="rounded-xl border border-border bg-card p-4">
-            <p className="mb-2 font-display text-lg">
-              🎴 내가 넣은 카드 ({actionCards.filter((c) => c.owner_team_id === teamId && c.is_in_deck).length}장)
-            </p>
+            <p className="mb-2 font-display text-lg">🎴 내가 넣은 카드 ({actionCards.filter((c) => c.owner_team_id === teamId && c.is_in_deck).length}장)</p>
             <div className="flex flex-wrap gap-2">
-              {actionCards
-                .filter((c) => c.owner_team_id === teamId && c.is_in_deck)
-                .map((c) => {
-                  const info = ACTION_CARD_INFO[c.card_type as ActionCardType];
-                  const mn = mascotName(c.target_mascot_id);
-                  return (
-                    <div key={c.id} className="rounded-lg bg-secondary px-2 py-1 text-xs">
-                      {info?.emoji} {info?.label}{" "}
-                      <span className="font-bold" style={{ color: CHARACTERS[mn].color }}>
-                        {mn}
-                      </span>
-                    </div>
-                  );
-                })}
+              {actionCards.filter((c) => c.owner_team_id === teamId && c.is_in_deck).map((c) => {
+                const info = ACTION_CARD_INFO[c.card_type as ActionCardType];
+                const mn = mascotName(c.target_mascot_id);
+                return (
+                  <div key={c.id} className="rounded-lg bg-secondary px-2 py-1 text-xs">
+                    {info?.emoji} {info?.label} <span className="font-bold" style={{ color: CHARACTERS[mn].color }}>{mn}</span>
+                  </div>
+                );
+              })}
             </div>
           </div>
         </div>
@@ -380,45 +359,35 @@ function TeamPage() {
                 <p className="text-sm text-muted-foreground">덱에서 카드를 골라 퀴즈에 도전하세요</p>
               </div>
               <p className="mb-2 font-display text-lg">🎴 레이스 덱 ({deckCards.length}장)</p>
-              {deckCards.length === 0 ? (
-                <p className="text-muted-foreground">덱에 카드가 없습니다.</p>
-              ) : (
-                deckCards.map((c) => {
+              {deckCards.length === 0
+                ? <p className="text-muted-foreground">덱에 카드가 없습니다.</p>
+                : deckCards.map((c) => {
                   const info = ACTION_CARD_INFO[c.card_type as ActionCardType];
                   const mn = mascotName(c.target_mascot_id);
                   const isPending = selectedCard?.id === c.id;
                   return (
-                    <div
-                      key={c.id}
-                      className={`mb-3 flex items-center gap-3 rounded-xl border-2 p-4 transition ${isPending ? "border-primary bg-primary/10" : "border-border bg-card hover:border-primary/50"}`}
-                    >
+                    <div key={c.id}
+                      className={`mb-3 flex items-center gap-3 rounded-xl border-2 p-4 transition ${isPending ? "border-primary bg-primary/10" : "border-border bg-card hover:border-primary/50"}`}>
                       <span className="text-3xl">{info?.emoji}</span>
                       <div className="flex-1">
                         <p className="font-display text-lg">{info?.label}</p>
                         <p className="text-sm text-muted-foreground">{info?.desc}</p>
                         <div className="mt-1 flex items-center gap-1">
                           <img src={CHARACTERS[mn].image} className="h-5 w-5" alt={mn} />
-                          <span className="text-sm font-bold" style={{ color: CHARACTERS[mn].color }}>
-                            {mn}
-                          </span>
+                          <span className="text-sm font-bold" style={{ color: CHARACTERS[mn].color }}>{mn}</span>
                         </div>
                       </div>
-                      {isPending ? (
-                        <span className="rounded-lg bg-primary/20 px-3 py-2 text-sm font-bold text-primary">
-                          퀴즈 대기 중...
-                        </span>
-                      ) : (
-                        <button
-                          onClick={() => selectDeckCard(c)}
-                          className="rounded-lg bg-primary px-4 py-3 font-display text-lg text-primary-foreground shadow-[0_4px_0_0_rgba(0,0,0,0.4)] transition-transform hover:-translate-y-0.5 active:translate-y-0"
-                        >
-                          선택!
-                        </button>
-                      )}
+                      {isPending
+                        ? <span className="rounded-lg bg-primary/20 px-3 py-2 text-sm font-bold text-primary">퀴즈 대기 중...</span>
+                        : (
+                          <button onClick={() => selectDeckCard(c)}
+                            className="rounded-lg bg-primary px-4 py-3 font-display text-lg text-primary-foreground shadow-[0_4px_0_0_rgba(0,0,0,0.4)] transition-transform hover:-translate-y-0.5 active:translate-y-0">
+                            선택!
+                          </button>
+                        )}
                     </div>
                   );
-                })
-              )}
+                })}
             </div>
           ) : (
             <div>
@@ -428,20 +397,18 @@ function TeamPage() {
               </Center>
               <div className="mt-4 rounded-xl border border-border bg-card p-4">
                 <p className="mb-2 font-display text-lg">현재 순위</p>
-                {[...mascots]
-                  .sort((a, b) => b.position - a.position)
-                  .map((m, i) => (
-                    <div key={m.id} className="flex items-center gap-2 py-1 text-sm">
-                      <span className="font-display w-4">{i + 1}</span>
-                      <img src={CHARACTERS[m.name].image} className="h-6 w-6" alt={m.name} />
-                      <span style={{ color: CHARACTERS[m.name].color }}>{m.name}</span>
-                      {m.is_fallen && <span className="text-xs text-yellow-400">넘어짐</span>}
-                      {m.direction === "backward" && <span className="text-xs text-red-400">역주행</span>}
-                      <span className="ml-auto text-muted-foreground">
-                        {m.is_eliminated ? "💀실격" : `${m.position}칸`}
-                      </span>
-                    </div>
-                  ))}
+                {[...mascots].sort((a, b) => b.position - a.position).map((m, i) => (
+                  <div key={m.id} className="flex items-center gap-2 py-1 text-sm">
+                    <span className="font-display w-4">{i + 1}</span>
+                    <img src={CHARACTERS[m.name].image} className="h-6 w-6" alt={m.name} />
+                    <span style={{ color: CHARACTERS[m.name].color }}>{m.name}</span>
+                    {m.is_fallen && <span className="text-xs text-yellow-400">넘어짐</span>}
+                    {m.direction === "backward" && <span className="text-xs text-red-400">역주행</span>}
+                    <span className="ml-auto text-muted-foreground">
+                      {m.is_eliminated ? "💀실격" : `${m.position}칸`}
+                    </span>
+                  </div>
+                ))}
               </div>
             </div>
           )}
@@ -455,21 +422,15 @@ function TeamPage() {
           <p className="text-muted-foreground">최종 자금: 💰 {team.money}</p>
           <div className="mt-4 w-full rounded-xl border border-border bg-card p-4">
             <p className="mb-2 font-display text-lg">내 베팅 결과</p>
-            {betting
-              .filter((b) => b.team_id === teamId && b.is_resolved)
-              .map((b) => (
-                <div key={b.id} className="flex items-center gap-2 py-1 text-sm">
-                  <img src={CHARACTERS[mascotName(b.mascot_id)].image} className="h-5 w-5" alt="" />
-                  <span>
-                    {mascotName(b.mascot_id)} {b.target_rank}등 {b.is_risky ? "RISKY" : "SAFE"}
-                  </span>
-                  <span
-                    className={`ml-auto font-bold ${(b.payout ?? 0) > 0 ? "text-green-400" : (b.payout ?? 0) < 0 ? "text-red-400" : "text-muted-foreground"}`}
-                  >
-                    {(b.payout ?? 0) > 0 ? `+${b.payout}` : (b.payout ?? 0)}
-                  </span>
-                </div>
-              ))}
+            {betting.filter((b) => b.team_id === teamId && b.is_resolved).map((b) => (
+              <div key={b.id} className="flex items-center gap-2 py-1 text-sm">
+                <img src={CHARACTERS[mascotName(b.mascot_id)].image} className="h-5 w-5" alt="" />
+                <span>{mascotName(b.mascot_id)} {b.target_rank}등 {b.is_risky ? "RISKY" : "SAFE"}</span>
+                <span className={`ml-auto font-bold ${(b.payout ?? 0) > 0 ? "text-green-400" : (b.payout ?? 0) < 0 ? "text-red-400" : "text-muted-foreground"}`}>
+                  {(b.payout ?? 0) > 0 ? `+${b.payout}` : b.payout ?? 0}
+                </span>
+              </div>
+            ))}
           </div>
         </Center>
       )}
@@ -478,5 +439,9 @@ function TeamPage() {
 }
 
 function Center({ children }: { children: React.ReactNode }) {
-  return <div className="flex flex-1 flex-col items-center justify-center gap-2 py-20 text-center">{children}</div>;
+  return (
+    <div className="flex flex-1 flex-col items-center justify-center gap-2 py-20 text-center">
+      {children}
+    </div>
+  );
 }
