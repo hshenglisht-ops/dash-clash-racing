@@ -7,6 +7,7 @@ export interface Game {
   phase: number;
   status: string;
   current_turn_team_id: string | null;
+  active_question_id?: string | null;
   created_at: string;
 }
 
