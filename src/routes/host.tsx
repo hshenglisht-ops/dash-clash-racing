@@ -302,7 +302,8 @@ function HostControl({ game, setGame }: { game: Game; setGame: (g: Game) => void
   const [questions, setQuestions] = useState<Question[]>([]);
   const [actionCards, setActionCards] = useState<ActionCard[]>([]);
   const [activeQ, setActiveQ] = useState<Question | null>(null);
-  const [buzzers, setBuzzers] = useState<{ team_id: string; buzzed_at: string }[]>([]);
+  const [correctAnswers, setCorrectAnswers] = useState<{ team_id: string; buzzed_at: string }[]>([]);
+  const [allAnswers, setAllAnswers] = useState<{ team_id: string; is_correct: boolean }[]>([]);
   const [phase2ActiveTeam, setPhase2ActiveTeam] = useState<string | null>(null);
   const [phase2Q, setPhase2Q] = useState<Question | null>(null);
   const [phase2Buzzers, setPhase2Buzzers] = useState<{ team_id: string; buzzed_at: string }[]>([]);
@@ -345,17 +346,20 @@ function HostControl({ game, setGame }: { game: Game; setGame: (g: Game) => void
     setActionCards((data as ActionCard[]) ?? []);
   }, [game.id]);
 
-  const refreshBuzzers = useCallback(async () => {
+  const refreshAnswers = useCallback(async () => {
     if (!activeQ) {
-      setBuzzers([]);
+      setCorrectAnswers([]);
+      setAllAnswers([]);
       return;
     }
     const { data } = await supabase
       .from("buzzer_events")
-      .select("team_id, buzzed_at")
+      .select("team_id, buzzed_at, is_correct")
       .eq("question_id", activeQ.id)
       .order("buzzed_at", { ascending: true });
-    setBuzzers((data as { team_id: string; buzzed_at: string }[]) ?? []);
+    const all = (data as { team_id: string; buzzed_at: string; is_correct: boolean }[]) ?? [];
+    setAllAnswers(all);
+    setCorrectAnswers(all.filter((b) => b.is_correct));
   }, [activeQ]);
 
   const refreshPhase2Buzzers = useCallback(async () => {
@@ -379,8 +383,8 @@ function HostControl({ game, setGame }: { game: Game; setGame: (g: Game) => void
     refreshActionCards();
   }, [refreshTeams, refreshMascots, refreshBetting, refreshQuestions, refreshActionCards]);
   useEffect(() => {
-    refreshBuzzers();
-  }, [refreshBuzzers]);
+    refreshAnswers();
+  }, [refreshAnswers]);
   useEffect(() => {
     refreshPhase2Buzzers();
   }, [refreshPhase2Buzzers]);
@@ -389,7 +393,7 @@ function HostControl({ game, setGame }: { game: Game; setGame: (g: Game) => void
   useRealtime("mascots", game.id, refreshMascots);
   useRealtime("betting_cards", game.id, refreshBetting);
   useRealtime("buzzer_events", game.id, () => {
-    refreshBuzzers();
+    refreshAnswers();
     refreshPhase2Buzzers();
   });
   useRealtime("games", game.id, refreshGame);
@@ -564,38 +568,48 @@ function HostControl({ game, setGame }: { game: Game; setGame: (g: Game) => void
             )}
             {activeQ && (
               <>
-                <h4 className="mt-4 font-display text-xl">버저 현황</h4>
+                <div className="mt-4 flex items-center justify-between">
+                  <h4 className="font-display text-xl">정답 현황</h4>
+                  <span className="text-sm text-muted-foreground">
+                    {allAnswers.length}/{teams.length}팀 답변
+                  </span>
+                </div>
                 <div className="mt-2 space-y-1">
-                  {buzzers.length === 0 && <p className="text-sm text-muted-foreground">대기 중...</p>}
-                  {buzzers.map((b, i) => (
+                  {correctAnswers.length === 0 && (
+                    <p className="text-sm text-muted-foreground">아직 정답자가 없습니다...</p>
+                  )}
+                  {correctAnswers.map((b, i) => (
                     <div
                       key={b.team_id}
-                      className={`flex items-center gap-2 rounded-lg px-3 py-2 ${i === 0 ? "bg-primary/20 ring-2 ring-primary" : "bg-secondary"}`}
+                      className={`flex items-center gap-2 rounded-lg px-3 py-2 ${i === 0 ? "bg-green-500/20 ring-2 ring-green-500" : "bg-secondary"}`}
                     >
-                      <span className="font-display text-lg">{i + 1}위</span>
+                      <span className="font-display text-lg text-green-400">{i + 1}등</span>
                       <span style={{ color: teamColor(b.team_id) }} className="font-bold">
                         {teamName(b.team_id)}
                       </span>
-                      {i === 0 && <span className="ml-auto text-xs text-primary">⚡ FASTEST</span>}
+                      <span className="ml-auto text-xs text-green-400">✅ 정답</span>
                     </div>
                   ))}
+                  {allAnswers
+                    .filter((b) => !b.is_correct)
+                    .map((b) => (
+                      <div
+                        key={b.team_id}
+                        className="flex items-center gap-2 rounded-lg bg-secondary/50 px-3 py-2 opacity-60"
+                      >
+                        <span style={{ color: teamColor(b.team_id) }} className="font-bold">
+                          {teamName(b.team_id)}
+                        </span>
+                        <span className="ml-auto text-xs text-red-400">❌ 오답</span>
+                      </div>
+                    ))}
                 </div>
-                {buzzers.length > 0 && (
-                  <div className="mt-3 flex gap-2">
-                    <button
-                      onClick={() => markAnswer(true)}
-                      className="flex-1 rounded-xl bg-track py-3 font-display text-xl text-white"
-                    >
-                      ⭕ 정답
-                    </button>
-                    <button
-                      onClick={() => markAnswer(false)}
-                      className="flex-1 rounded-xl bg-destructive py-3 font-display text-xl text-white"
-                    >
-                      ❌ 오답
-                    </button>
-                  </div>
-                )}
+                <button
+                  onClick={closeQuestion}
+                  className="mt-3 w-full rounded-xl bg-secondary py-3 font-display text-lg transition hover:bg-primary hover:text-primary-foreground"
+                >
+                  문제 종료 → 다음 문제
+                </button>
               </>
             )}
           </div>

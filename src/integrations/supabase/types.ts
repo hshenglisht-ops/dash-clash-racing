@@ -135,6 +135,7 @@ export type Database = {
           id: string;
           is_correct: boolean | null;
           question_id: string;
+          selected_answer: string | null;
           team_id: string;
         };
         Insert: {
@@ -143,6 +144,7 @@ export type Database = {
           id?: string;
           is_correct?: boolean | null;
           question_id: string;
+          selected_answer?: string | null;
           team_id: string;
         };
         Update: {
@@ -151,6 +153,7 @@ export type Database = {
           id?: string;
           is_correct?: boolean | null;
           question_id?: string;
+          selected_answer?: string | null;
           team_id?: string;
         };
         Relationships: [
