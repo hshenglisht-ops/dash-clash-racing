@@ -40,10 +40,6 @@ function HostPage() {
   return game ? <HostControl game={game} setGame={setGame} /> : <HostSetup onCreated={setGame} />;
 }
 
-/* ------------------------------------------------------------------ */
-/* SETUP                                                               */
-/* ------------------------------------------------------------------ */
-
 const EMPTY_Q: QuestionInput = {
   question_text: "",
   choice_a: "",
@@ -299,10 +295,6 @@ function FileDrop({ accept, label, onFile }: { accept: string; label: string; on
   );
 }
 
-/* ------------------------------------------------------------------ */
-/* CONTROL                                                             */
-/* ------------------------------------------------------------------ */
-
 function HostControl({ game, setGame }: { game: Game; setGame: (g: Game) => void }) {
   const [teams, setTeams] = useState<Team[]>([]);
   const [mascots, setMascots] = useState<Mascot[]>([]);
@@ -311,11 +303,9 @@ function HostControl({ game, setGame }: { game: Game; setGame: (g: Game) => void
   const [actionCards, setActionCards] = useState<ActionCard[]>([]);
   const [activeQ, setActiveQ] = useState<Question | null>(null);
   const [buzzers, setBuzzers] = useState<{ team_id: string; buzzed_at: string }[]>([]);
-  // Phase2: which team is answering quiz
   const [phase2ActiveTeam, setPhase2ActiveTeam] = useState<string | null>(null);
   const [phase2Q, setPhase2Q] = useState<Question | null>(null);
   const [phase2Buzzers, setPhase2Buzzers] = useState<{ team_id: string; buzzed_at: string }[]>([]);
-  // Phase3: selected card waiting for quiz
   const [pendingCard, setPendingCard] = useState<ActionCard | null>(null);
   const [phase3Q, setPhase3Q] = useState<Question | null>(null);
   const [effectMsg, setEffectMsg] = useState<string | null>(null);
@@ -424,6 +414,8 @@ function HostControl({ game, setGame }: { game: Game; setGame: (g: Game) => void
       .eq("team_id", buzzers[0].team_id);
     if (correct) {
       await supabase.from("questions").update({ is_used: true }).eq("id", activeQ.id);
+      // clear active question so buzzer resets
+      await supabase.from("games").update({ active_question_id: null }).eq("id", game.id);
       toast.success("✅ 정답! 베팅카드를 선점하세요.");
     } else {
       toast.info("❌ 오답");
@@ -431,7 +423,6 @@ function HostControl({ game, setGame }: { game: Game; setGame: (g: Game) => void
     refreshQuestions();
   }
 
-  // Phase 2: show a question for a team to earn action cards
   async function startPhase2Quiz() {
     const unused = questions.filter((q) => !q.is_used);
     if (unused.length === 0) {
@@ -445,7 +436,6 @@ function HostControl({ game, setGame }: { game: Game; setGame: (g: Game) => void
   async function markPhase2Answer(correct: boolean) {
     if (!phase2Q || !phase2ActiveTeam) return;
     if (correct) {
-      // grant 3 action cards
       const mascotIds = mascots.map((m) => m.id);
       const { grantActionCards } = await import("@/lib/game");
       await grantActionCards(game.id, phase2ActiveTeam, mascotIds, 3);
@@ -460,7 +450,6 @@ function HostControl({ game, setGame }: { game: Game; setGame: (g: Game) => void
     setPhase2ActiveTeam(null);
   }
 
-  // Phase 3: host resolves the pending card after team answers
   async function resolvePhase3Card(correct: boolean) {
     if (!pendingCard) return;
     if (correct) {
@@ -499,13 +488,11 @@ function HostControl({ game, setGame }: { game: Game; setGame: (g: Game) => void
   };
   const teamName = (id: string) => teams.find((t) => t.id === id)?.name ?? "?";
   const mascotName = (id: string): MascotName => (mascots.find((m) => m.id === id)?.name as MascotName) ?? "CHILI";
-
   const deckCards = actionCards.filter((c) => c.is_in_deck && !c.is_revealed);
   const currentTurnTeam = teams.find((t) => t.id === game.current_turn_team_id);
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-6">
-      {/* HEADER */}
       <div className="flex flex-wrap items-center gap-4 rounded-2xl border border-border bg-card p-5">
         <div>
           <p className="text-sm text-muted-foreground">게임 코드</p>
@@ -529,7 +516,6 @@ function HostControl({ game, setGame }: { game: Game; setGame: (g: Game) => void
         </div>
       </div>
 
-      {/* TEAMS */}
       <div className="mt-4 flex flex-wrap gap-3">
         {teams.map((t, i) => (
           <div
@@ -561,7 +547,10 @@ function HostControl({ game, setGame }: { game: Game; setGame: (g: Game) => void
               {questions.map((q, i) => (
                 <button
                   key={q.id}
-                  onClick={() => setActiveQ(q)}
+                  onClick={async () => {
+                    setActiveQ(q);
+                    await supabase.from("games").update({ active_question_id: q.id }).eq("id", game.id);
+                  }}
                   className={`h-9 w-9 rounded-lg font-display ${activeQ?.id === q.id ? "bg-primary text-primary-foreground" : q.is_used ? "bg-secondary/50 text-muted-foreground" : "bg-secondary"}`}
                 >
                   {i + 1}
@@ -624,9 +613,7 @@ function HostControl({ game, setGame }: { game: Game; setGame: (g: Game) => void
           <p className="mb-4 text-muted-foreground">
             팀별로 퀴즈를 풀어 액션카드를 획득하고, 공용 레이스 덱에 삽입합니다.
           </p>
-
           <div className="grid gap-4 md:grid-cols-2">
-            {/* Quiz for earning cards */}
             <Panel title="📝 팀 퀴즈 출제">
               <div className="mb-3 flex flex-wrap gap-2">
                 {teams.map((t, i) => (
@@ -671,8 +658,6 @@ function HostControl({ game, setGame }: { game: Game; setGame: (g: Game) => void
                 </>
               )}
             </Panel>
-
-            {/* Teams' card status */}
             <Panel title="🃏 팀별 액션카드 현황">
               {teams.map((t, i) => {
                 const myCards = actionCards.filter((c) => c.owner_team_id === t.id && !c.is_in_deck);
@@ -697,8 +682,6 @@ function HostControl({ game, setGame }: { game: Game; setGame: (g: Game) => void
               })}
             </Panel>
           </div>
-
-          {/* Deck preview */}
           <Panel title={`🎴 공용 레이스 덱 (${deckCards.length}장)`}>
             <div className="flex flex-wrap gap-2">
               {deckCards.length === 0 && (
@@ -737,17 +720,12 @@ function HostControl({ game, setGame }: { game: Game; setGame: (g: Game) => void
               </span>
             )}
           </div>
-
-          {/* Effect flash */}
           {effectMsg && (
             <div className="animate-pop-in mb-4 rounded-2xl bg-primary/20 p-4 text-center font-display text-2xl text-primary ring-2 ring-primary">
               {effectMsg}
             </div>
           )}
-
           <HostTrack mascots={mascots} />
-
-          {/* Deck cards — host sees what's in deck */}
           <div className="mt-4 grid gap-4 md:grid-cols-2">
             <Panel title={`🎴 레이스 덱 (${deckCards.length}장 남음)`}>
               {deckCards.length === 0 ? (
@@ -773,8 +751,6 @@ function HostControl({ game, setGame }: { game: Game; setGame: (g: Game) => void
                 })
               )}
             </Panel>
-
-            {/* Phase3 quiz panel */}
             <Panel title="📝 카드 퀴즈">
               {pendingCard && phase3Q ? (
                 <>
@@ -782,8 +758,8 @@ function HostControl({ game, setGame }: { game: Game; setGame: (g: Game) => void
                     카드 효과:{" "}
                     <span className="font-bold text-foreground">
                       {ACTION_CARD_INFO[pendingCard.card_type as ActionCardType]?.label}
-                    </span>{" "}
-                    →{" "}
+                    </span>
+                    {" → "}
                     <span
                       className="font-bold"
                       style={{ color: CHARACTERS[mascotName(pendingCard.target_mascot_id)].color }}
@@ -816,7 +792,6 @@ function HostControl({ game, setGame }: { game: Game; setGame: (g: Game) => void
               )}
             </Panel>
           </div>
-
           <div className="mt-4 grid gap-4 md:grid-cols-2">
             <Panel title="팀 자금 & 순위">
               {[...teams]
@@ -891,8 +866,6 @@ function HostControl({ game, setGame }: { game: Game; setGame: (g: Game) => void
     </div>
   );
 }
-
-/* ── sub-components ── */
 
 function PhaseBtn({ onClick, children }: { onClick: () => void; children: React.ReactNode }) {
   return (
