@@ -3,15 +3,15 @@ import { supabase } from "@/integrations/supabase/client";
 
 /**
  * Subscribe to postgres changes on a table filtered by game_id and run a callback.
- * The callback typically re-fetches the relevant data.
+ * For the 'games' table itself, filters by id instead of game_id.
  */
-export function useRealtime(
-  table: string,
-  gameId: string | null | undefined,
-  onChange: () => void,
-) {
+export function useRealtime(table: string, gameId: string | null | undefined, onChange: () => void) {
   useEffect(() => {
     if (!gameId) return;
+
+    // 'games' 테이블은 game_id 컬럼이 없고 id가 PK이므로 별도 처리
+    const filter = table === "games" ? `id=eq.${gameId}` : `game_id=eq.${gameId}`;
+
     const channel = supabase
       .channel(`rt-${table}-${gameId}`)
       .on(
@@ -20,7 +20,7 @@ export function useRealtime(
           event: "*",
           schema: "public",
           table,
-          filter: `game_id=eq.${gameId}`,
+          filter,
         },
         () => onChange(),
       )
