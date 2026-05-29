@@ -8,6 +8,11 @@ import { supabase } from "@/integrations/supabase/client";
 import { useRealtime } from "@/hooks/useRealtime";
 import {
   createGame,
+  applyCardEffect,
+  advanceTurn,
+  resolveBetting,
+  isRaceOver,
+  type ActionCard,
   type Game,
   type Team,
   type Question,
@@ -15,23 +20,24 @@ import {
   type Mascot,
   type QuestionInput,
 } from "@/lib/game";
-import { CHARACTERS, MASCOT_ORDER, TEAM_COLORS, type MascotName } from "@/lib/characters";
+import {
+  CHARACTERS,
+  MASCOT_ORDER,
+  TEAM_COLORS,
+  ACTION_CARD_INFO,
+  type MascotName,
+  type ActionCardType,
+} from "@/lib/characters";
 import { HostTrack } from "@/components/game/HostTrack";
 
 export const Route = createFileRoute("/host")({
-  head: () => ({
-    meta: [{ title: "호스트 화면 — DASH & CLASH" }],
-  }),
+  head: () => ({ meta: [{ title: "호스트 화면 — DASH & CLASH" }] }),
   component: HostPage,
 });
 
 function HostPage() {
   const [game, setGame] = useState<Game | null>(null);
-  return game ? (
-    <HostControl game={game} setGame={setGame} />
-  ) : (
-    <HostSetup onCreated={setGame} />
-  );
+  return game ? <HostControl game={game} setGame={setGame} /> : <HostSetup onCreated={setGame} />;
 }
 
 /* ------------------------------------------------------------------ */
@@ -49,9 +55,7 @@ const EMPTY_Q: QuestionInput = {
 
 function HostSetup({ onCreated }: { onCreated: (g: Game) => void }) {
   const [teamCount, setTeamCount] = useState(4);
-  const [teamNames, setTeamNames] = useState<string[]>(
-    Array.from({ length: 4 }, (_, i) => `${i + 1}조`),
-  );
+  const [teamNames, setTeamNames] = useState<string[]>(Array.from({ length: 4 }, (_, i) => `${i + 1}조`));
   const [questions, setQuestions] = useState<QuestionInput[]>([]);
   const [draft, setDraft] = useState<QuestionInput>({ ...EMPTY_Q });
   const [tab, setTab] = useState<"direct" | "csv" | "excel">("direct");
@@ -79,10 +83,7 @@ function HostSetup({ onCreated }: { onCreated: (g: Game) => void }) {
   function ingestRows(rows: Record<string, unknown>[]) {
     const parsed: QuestionInput[] = [];
     for (const r of rows) {
-      const get = (k: string) =>
-        String(
-          r[k] ?? r[k.toUpperCase()] ?? r[k[0].toUpperCase() + k.slice(1)] ?? "",
-        ).trim();
+      const get = (k: string) => String(r[k] ?? r[k.toUpperCase()] ?? r[k[0].toUpperCase() + k.slice(1)] ?? "").trim();
       const q = get("question");
       if (!q) continue;
       parsed.push({
@@ -155,7 +156,6 @@ function HostSetup({ onCreated }: { onCreated: (g: Game) => void }) {
       </h1>
       <p className="mt-1 text-muted-foreground">팀과 문제를 설정하고 게임을 생성하세요.</p>
 
-      {/* TEAM SETUP */}
       <Section title="① 팀 설정">
         <label className="mb-3 block text-sm text-muted-foreground">
           팀 수: <span className="font-display text-lg text-primary">{teamCount}</span>
@@ -173,9 +173,7 @@ function HostSetup({ onCreated }: { onCreated: (g: Game) => void }) {
             <input
               key={i}
               value={name}
-              onChange={(e) =>
-                setTeamNames((p) => p.map((v, j) => (j === i ? e.target.value : v)))
-              }
+              onChange={(e) => setTeamNames((p) => p.map((v, j) => (j === i ? e.target.value : v)))}
               className="rounded-lg border-2 border-border bg-input px-3 py-2 text-sm font-semibold outline-none focus:border-primary"
               style={{ borderColor: TEAM_COLORS[i] }}
             />
@@ -183,24 +181,18 @@ function HostSetup({ onCreated }: { onCreated: (g: Game) => void }) {
         </div>
       </Section>
 
-      {/* QUESTIONS */}
       <Section title="② 문제 입력">
         <div className="mb-4 flex gap-2">
           {(["direct", "csv", "excel"] as const).map((t) => (
             <button
               key={t}
               onClick={() => setTab(t)}
-              className={`rounded-lg px-4 py-2 text-sm font-bold transition ${
-                tab === t
-                  ? "bg-primary text-primary-foreground"
-                  : "bg-secondary text-muted-foreground"
-              }`}
+              className={`rounded-lg px-4 py-2 text-sm font-bold transition ${tab === t ? "bg-primary text-primary-foreground" : "bg-secondary text-muted-foreground"}`}
             >
               {t === "direct" ? "직접 입력" : t === "csv" ? "CSV 업로드" : "엑셀 업로드"}
             </button>
           ))}
         </div>
-
         {tab === "direct" && (
           <div className="space-y-2">
             <input
@@ -215,9 +207,7 @@ function HostSetup({ onCreated }: { onCreated: (g: Game) => void }) {
                   key={k}
                   placeholder={`보기 ${k.toUpperCase()}`}
                   value={draft[`choice_${k}` as keyof QuestionInput] as string}
-                  onChange={(e) =>
-                    setDraft({ ...draft, [`choice_${k}`]: e.target.value })
-                  }
+                  onChange={(e) => setDraft({ ...draft, [`choice_${k}`]: e.target.value })}
                   className="rounded-lg border-2 border-border bg-input px-3 py-2 text-sm outline-none focus:border-primary"
                 />
               ))}
@@ -228,11 +218,7 @@ function HostSetup({ onCreated }: { onCreated: (g: Game) => void }) {
                 <button
                   key={ans}
                   onClick={() => setDraft({ ...draft, correct_answer: ans })}
-                  className={`h-9 w-9 rounded-lg font-display text-lg ${
-                    draft.correct_answer === ans
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-secondary"
-                  }`}
+                  className={`h-9 w-9 rounded-lg font-display text-lg ${draft.correct_answer === ans ? "bg-primary text-primary-foreground" : "bg-secondary"}`}
                 >
                   {ans}
                 </button>
@@ -246,34 +232,18 @@ function HostSetup({ onCreated }: { onCreated: (g: Game) => void }) {
             </div>
           </div>
         )}
-
-        {tab === "csv" && (
-          <FileDrop accept=".csv" label="CSV 파일 선택 (question,a,b,c,d,answer)" onFile={onCsv} />
-        )}
+        {tab === "csv" && <FileDrop accept=".csv" label="CSV 파일 선택 (question,a,b,c,d,answer)" onFile={onCsv} />}
         {tab === "excel" && (
-          <FileDrop
-            accept=".xlsx,.xls"
-            label="엑셀 파일 선택 (question,a,b,c,d,answer)"
-            onFile={onExcel}
-          />
+          <FileDrop accept=".xlsx,.xls" label="엑셀 파일 선택 (question,a,b,c,d,answer)" onFile={onExcel} />
         )}
-
         {questions.length > 0 && (
           <div className="mt-4 max-h-52 overflow-auto rounded-lg border border-border">
             {questions.map((q, i) => (
-              <div
-                key={i}
-                className="flex items-center gap-2 border-b border-border px-3 py-2 text-sm last:border-0"
-              >
+              <div key={i} className="flex items-center gap-2 border-b border-border px-3 py-2 text-sm last:border-0">
                 <span className="font-display text-primary">{i + 1}</span>
                 <span className="flex-1 truncate">{q.question_text}</span>
-                <span className="rounded bg-secondary px-2 py-0.5 text-xs">
-                  정답 {q.correct_answer}
-                </span>
-                <button
-                  onClick={() => setQuestions((p) => p.filter((_, j) => j !== i))}
-                  className="text-destructive"
-                >
+                <span className="rounded bg-secondary px-2 py-0.5 text-xs">정답 {q.correct_answer}</span>
+                <button onClick={() => setQuestions((p) => p.filter((_, j) => j !== i))} className="text-destructive">
                   ✕
                 </button>
               </div>
@@ -305,15 +275,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   );
 }
 
-function FileDrop({
-  accept,
-  label,
-  onFile,
-}: {
-  accept: string;
-  label: string;
-  onFile: (f: File) => void;
-}) {
+function FileDrop({ accept, label, onFile }: { accept: string; label: string; onFile: (f: File) => void }) {
   const ref = useRef<HTMLInputElement>(null);
   return (
     <button
@@ -341,26 +303,25 @@ function FileDrop({
 /* CONTROL                                                             */
 /* ------------------------------------------------------------------ */
 
-function HostControl({
-  game,
-  setGame,
-}: {
-  game: Game;
-  setGame: (g: Game) => void;
-}) {
+function HostControl({ game, setGame }: { game: Game; setGame: (g: Game) => void }) {
   const [teams, setTeams] = useState<Team[]>([]);
   const [mascots, setMascots] = useState<Mascot[]>([]);
   const [betting, setBetting] = useState<BettingCard[]>([]);
   const [questions, setQuestions] = useState<Question[]>([]);
+  const [actionCards, setActionCards] = useState<ActionCard[]>([]);
   const [activeQ, setActiveQ] = useState<Question | null>(null);
-  const [buzzers, setBuzzers] = useState<
-    { team_id: string; buzzed_at: string }[]
-  >([]);
+  const [buzzers, setBuzzers] = useState<{ team_id: string; buzzed_at: string }[]>([]);
+  // Phase2: which team is answering quiz
+  const [phase2ActiveTeam, setPhase2ActiveTeam] = useState<string | null>(null);
+  const [phase2Q, setPhase2Q] = useState<Question | null>(null);
+  const [phase2Buzzers, setPhase2Buzzers] = useState<{ team_id: string; buzzed_at: string }[]>([]);
+  // Phase3: selected card waiting for quiz
+  const [pendingCard, setPendingCard] = useState<ActionCard | null>(null);
+  const [phase3Q, setPhase3Q] = useState<Question | null>(null);
+  const [effectMsg, setEffectMsg] = useState<string | null>(null);
+  const [raceOver, setRaceOver] = useState(false);
 
-  const joinUrl =
-    typeof window !== "undefined"
-      ? `${window.location.origin}/join?code=${game.game_code}`
-      : "";
+  const joinUrl = typeof window !== "undefined" ? `${window.location.origin}/join?code=${game.game_code}` : "";
 
   const refreshGame = useCallback(async () => {
     const { data } = await supabase.from("games").select("*").eq("id", game.id).single();
@@ -368,17 +329,15 @@ function HostControl({
   }, [game.id, setGame]);
 
   const refreshTeams = useCallback(async () => {
-    const { data } = await supabase
-      .from("teams")
-      .select("*")
-      .eq("game_id", game.id)
-      .order("created_at");
+    const { data } = await supabase.from("teams").select("*").eq("game_id", game.id).order("created_at");
     setTeams((data as Team[]) ?? []);
   }, [game.id]);
 
   const refreshMascots = useCallback(async () => {
     const { data } = await supabase.from("mascots").select("*").eq("game_id", game.id);
-    setMascots((data as Mascot[]) ?? []);
+    const ms = (data as Mascot[]) ?? [];
+    setMascots(ms);
+    setRaceOver(isRaceOver(ms));
   }, [game.id]);
 
   const refreshBetting = useCallback(async () => {
@@ -389,6 +348,11 @@ function HostControl({
   const refreshQuestions = useCallback(async () => {
     const { data } = await supabase.from("questions").select("*").eq("game_id", game.id);
     setQuestions((data as Question[]) ?? []);
+  }, [game.id]);
+
+  const refreshActionCards = useCallback(async () => {
+    const { data } = await supabase.from("action_cards").select("*").eq("game_id", game.id);
+    setActionCards((data as ActionCard[]) ?? []);
   }, [game.id]);
 
   const refreshBuzzers = useCallback(async () => {
@@ -404,27 +368,51 @@ function HostControl({
     setBuzzers((data as { team_id: string; buzzed_at: string }[]) ?? []);
   }, [activeQ]);
 
+  const refreshPhase2Buzzers = useCallback(async () => {
+    if (!phase2Q) {
+      setPhase2Buzzers([]);
+      return;
+    }
+    const { data } = await supabase
+      .from("buzzer_events")
+      .select("team_id, buzzed_at")
+      .eq("question_id", phase2Q.id)
+      .order("buzzed_at", { ascending: true });
+    setPhase2Buzzers((data as { team_id: string; buzzed_at: string }[]) ?? []);
+  }, [phase2Q]);
+
   useEffect(() => {
     refreshTeams();
     refreshMascots();
     refreshBetting();
     refreshQuestions();
-  }, [refreshTeams, refreshMascots, refreshBetting, refreshQuestions]);
-
+    refreshActionCards();
+  }, [refreshTeams, refreshMascots, refreshBetting, refreshQuestions, refreshActionCards]);
   useEffect(() => {
     refreshBuzzers();
   }, [refreshBuzzers]);
+  useEffect(() => {
+    refreshPhase2Buzzers();
+  }, [refreshPhase2Buzzers]);
 
   useRealtime("teams", game.id, refreshTeams);
   useRealtime("mascots", game.id, refreshMascots);
   useRealtime("betting_cards", game.id, refreshBetting);
-  useRealtime("buzzer_events", game.id, refreshBuzzers);
+  useRealtime("buzzer_events", game.id, () => {
+    refreshBuzzers();
+    refreshPhase2Buzzers();
+  });
   useRealtime("games", game.id, refreshGame);
+  useRealtime("action_cards", game.id, refreshActionCards);
 
   async function setStatus(status: string, phase: number) {
     await supabase.from("games").update({ status, phase }).eq("id", game.id);
     refreshGame();
     toast.success(`상태: ${status}`);
+    if (status === "phase3" && teams.length > 0) {
+      await supabase.from("games").update({ current_turn_team_id: teams[0].id }).eq("id", game.id);
+      refreshGame();
+    }
   }
 
   async function markAnswer(correct: boolean) {
@@ -434,7 +422,75 @@ function HostControl({
       .update({ is_correct: correct })
       .eq("question_id", activeQ.id)
       .eq("team_id", buzzers[0].team_id);
-    toast.success(correct ? "정답 처리!" : "오답 처리");
+    if (correct) {
+      await supabase.from("questions").update({ is_used: true }).eq("id", activeQ.id);
+      toast.success("✅ 정답! 베팅카드를 선점하세요.");
+    } else {
+      toast.info("❌ 오답");
+    }
+    refreshQuestions();
+  }
+
+  // Phase 2: show a question for a team to earn action cards
+  async function startPhase2Quiz() {
+    const unused = questions.filter((q) => !q.is_used);
+    if (unused.length === 0) {
+      toast.error("문제가 없습니다");
+      return;
+    }
+    const q = unused[Math.floor(Math.random() * unused.length)];
+    setPhase2Q(q);
+  }
+
+  async function markPhase2Answer(correct: boolean) {
+    if (!phase2Q || !phase2ActiveTeam) return;
+    if (correct) {
+      // grant 3 action cards
+      const mascotIds = mascots.map((m) => m.id);
+      const { grantActionCards } = await import("@/lib/game");
+      await grantActionCards(game.id, phase2ActiveTeam, mascotIds, 3);
+      toast.success("✅ 정답! 액션카드 3장 획득!");
+    } else {
+      toast.info("❌ 오답 — 카드 없음");
+    }
+    await supabase.from("questions").update({ is_used: true }).eq("id", phase2Q.id);
+    refreshQuestions();
+    refreshActionCards();
+    setPhase2Q(null);
+    setPhase2ActiveTeam(null);
+  }
+
+  // Phase 3: host resolves the pending card after team answers
+  async function resolvePhase3Card(correct: boolean) {
+    if (!pendingCard) return;
+    if (correct) {
+      const target = mascots.find((m) => m.id === pendingCard.target_mascot_id);
+      if (target) {
+        const result = await applyCardEffect(game.id, pendingCard.id, target, mascots);
+        setEffectMsg(result.message);
+        setTimeout(() => setEffectMsg(null), 3000);
+        refreshMascots();
+      }
+      toast.success("🎉 카드 효과 발동!");
+    } else {
+      await supabase.from("action_cards").update({ is_revealed: true }).eq("id", pendingCard.id);
+      toast.info("❌ 오답 — 효과 없음");
+    }
+    await supabase
+      .from("questions")
+      .update({ is_used: true })
+      .eq("id", phase3Q?.id ?? "");
+    await advanceTurn(game.id, teams, game.current_turn_team_id);
+    setPendingCard(null);
+    setPhase3Q(null);
+    refreshGame();
+    refreshActionCards();
+    refreshQuestions();
+    if (isRaceOver(mascots)) {
+      await resolveBetting(game.id, mascots);
+      await setStatus("finished", 3);
+      toast.success("🏁 경주 종료! 베팅 정산 완료");
+    }
   }
 
   const teamColor = (id: string) => {
@@ -442,6 +498,10 @@ function HostControl({
     return TEAM_COLORS[idx] ?? "#888";
   };
   const teamName = (id: string) => teams.find((t) => t.id === id)?.name ?? "?";
+  const mascotName = (id: string): MascotName => (mascots.find((m) => m.id === id)?.name as MascotName) ?? "CHILI";
+
+  const deckCards = actionCards.filter((c) => c.is_in_deck && !c.is_revealed);
+  const currentTurnTeam = teams.find((t) => t.id === game.current_turn_team_id);
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-6">
@@ -449,9 +509,7 @@ function HostControl({
       <div className="flex flex-wrap items-center gap-4 rounded-2xl border border-border bg-card p-5">
         <div>
           <p className="text-sm text-muted-foreground">게임 코드</p>
-          <p className="font-display text-5xl tracking-widest text-primary">
-            {game.game_code}
-          </p>
+          <p className="font-display text-5xl tracking-widest text-primary">{game.game_code}</p>
         </div>
         <div className="rounded-xl bg-white p-2">
           <QRCodeSVG value={joinUrl} size={88} />
@@ -460,8 +518,7 @@ function HostControl({
           <p className="text-sm text-muted-foreground">참가 링크</p>
           <p className="break-all text-xs text-frosty">{joinUrl}</p>
           <p className="mt-2 text-sm">
-            상태: <span className="font-display text-lg text-primary">{game.status}</span> /
-            페이즈 {game.phase}
+            상태: <span className="font-display text-lg text-primary">{game.status}</span> / 페이즈 {game.phase}
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -472,7 +529,7 @@ function HostControl({
         </div>
       </div>
 
-      {/* TEAMS live */}
+      {/* TEAMS */}
       <div className="mt-4 flex flex-wrap gap-3">
         {teams.map((t, i) => (
           <div
@@ -490,12 +547,12 @@ function HostControl({
 
       {game.status === "waiting" && (
         <p className="mt-8 text-center text-muted-foreground">
-          학생들이 코드로 입장하면 위에 팀이 표시됩니다. 준비되면{" "}
-          <span className="text-primary">[페이즈1]</span>로 시작하세요.
+          학생들이 코드로 입장하면 위에 팀이 표시됩니다. 준비되면 <span className="text-primary">[페이즈1]</span>로
+          시작하세요.
         </p>
       )}
 
-      {/* PHASE 1 */}
+      {/* ── PHASE 1 ── */}
       {game.status === "phase1" && (
         <div className="mt-6 grid gap-6 lg:grid-cols-2">
           <div>
@@ -504,45 +561,27 @@ function HostControl({
               {questions.map((q, i) => (
                 <button
                   key={q.id}
-                  onClick={async () => {
-                    setActiveQ(q);
-                    await supabase
-                      .from("games")
-                      .update({ status: "phase1" })
-                      .eq("id", game.id);
-                  }}
-                  className={`h-9 w-9 rounded-lg font-display ${
-                    activeQ?.id === q.id
-                      ? "bg-primary text-primary-foreground"
-                      : q.is_used
-                        ? "bg-secondary/50 text-muted-foreground"
-                        : "bg-secondary"
-                  }`}
+                  onClick={() => setActiveQ(q)}
+                  className={`h-9 w-9 rounded-lg font-display ${activeQ?.id === q.id ? "bg-primary text-primary-foreground" : q.is_used ? "bg-secondary/50 text-muted-foreground" : "bg-secondary"}`}
                 >
                   {i + 1}
                 </button>
               ))}
             </div>
-
             {activeQ ? (
               <QuestionCard q={activeQ} />
             ) : (
               <p className="text-muted-foreground">문제 번호를 눌러 출제하세요.</p>
             )}
-
             {activeQ && (
               <>
                 <h4 className="mt-4 font-display text-xl">버저 현황</h4>
                 <div className="mt-2 space-y-1">
-                  {buzzers.length === 0 && (
-                    <p className="text-sm text-muted-foreground">대기 중...</p>
-                  )}
+                  {buzzers.length === 0 && <p className="text-sm text-muted-foreground">대기 중...</p>}
                   {buzzers.map((b, i) => (
                     <div
                       key={b.team_id}
-                      className={`flex items-center gap-2 rounded-lg px-3 py-2 ${
-                        i === 0 ? "bg-primary/20 ring-2 ring-primary" : "bg-secondary"
-                      }`}
+                      className={`flex items-center gap-2 rounded-lg px-3 py-2 ${i === 0 ? "bg-primary/20 ring-2 ring-primary" : "bg-secondary"}`}
                     >
                       <span className="font-display text-lg">{i + 1}위</span>
                       <span style={{ color: teamColor(b.team_id) }} className="font-bold">
@@ -571,8 +610,6 @@ function HostControl({
               </>
             )}
           </div>
-
-          {/* Betting grid */}
           <div>
             <h3 className="mb-2 font-display text-2xl">베팅카드 현황</h3>
             <BettingGrid betting={betting} mascots={mascots} teamColor={teamColor} />
@@ -580,37 +617,206 @@ function HostControl({
         </div>
       )}
 
-      {/* PHASE 2 */}
+      {/* ── PHASE 2 ── */}
       {game.status === "phase2" && (
         <div className="mt-6">
           <h3 className="font-display text-2xl">페이즈2 — 덱 빌딩</h3>
-          <p className="text-muted-foreground">
-            팀이 액션카드를 획득하고 공용 덱에 삽입합니다.
+          <p className="mb-4 text-muted-foreground">
+            팀별로 퀴즈를 풀어 액션카드를 획득하고, 공용 레이스 덱에 삽입합니다.
           </p>
-          <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
-            {teams.map((t, i) => (
-              <div
-                key={t.id}
-                className="rounded-xl border-2 bg-card p-4 text-center"
-                style={{ borderColor: TEAM_COLORS[i] }}
-              >
-                <p className="font-display text-lg" style={{ color: TEAM_COLORS[i] }}>
-                  {t.name}
-                </p>
-                <p className="text-sm text-muted-foreground">자금 💰 {t.money}</p>
+
+          <div className="grid gap-4 md:grid-cols-2">
+            {/* Quiz for earning cards */}
+            <Panel title="📝 팀 퀴즈 출제">
+              <div className="mb-3 flex flex-wrap gap-2">
+                {teams.map((t, i) => (
+                  <button
+                    key={t.id}
+                    onClick={() => {
+                      setPhase2ActiveTeam(t.id);
+                      startPhase2Quiz();
+                    }}
+                    className="rounded-lg px-3 py-2 text-sm font-bold transition hover:opacity-80"
+                    style={{
+                      backgroundColor: TEAM_COLORS[i] + "33",
+                      borderColor: TEAM_COLORS[i],
+                      border: "2px solid",
+                      color: TEAM_COLORS[i],
+                    }}
+                  >
+                    {t.name} 문제 출제
+                  </button>
+                ))}
               </div>
-            ))}
+              {phase2Q && phase2ActiveTeam && (
+                <>
+                  <div className="mb-2 text-sm font-bold" style={{ color: teamColor(phase2ActiveTeam) }}>
+                    {teamName(phase2ActiveTeam)} 팀 문제
+                  </div>
+                  <QuestionCard q={phase2Q} />
+                  <div className="mt-3 flex gap-2">
+                    <button
+                      onClick={() => markPhase2Answer(true)}
+                      className="flex-1 rounded-xl bg-track py-3 font-display text-xl text-white"
+                    >
+                      ⭕ 정답 (+3장)
+                    </button>
+                    <button
+                      onClick={() => markPhase2Answer(false)}
+                      className="flex-1 rounded-xl bg-destructive py-3 font-display text-xl text-white"
+                    >
+                      ❌ 오답
+                    </button>
+                  </div>
+                </>
+              )}
+            </Panel>
+
+            {/* Teams' card status */}
+            <Panel title="🃏 팀별 액션카드 현황">
+              {teams.map((t, i) => {
+                const myCards = actionCards.filter((c) => c.owner_team_id === t.id && !c.is_in_deck);
+                const inDeck = actionCards.filter((c) => c.owner_team_id === t.id && c.is_in_deck);
+                return (
+                  <div key={t.id} className="mb-3 rounded-lg border border-border p-2">
+                    <div className="mb-1 font-display text-sm" style={{ color: TEAM_COLORS[i] }}>
+                      {t.name}
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      보유: {myCards.length}장 | 덱에 추가: {inDeck.length}장
+                    </div>
+                    <div className="mt-1 flex flex-wrap gap-1">
+                      {myCards.map((c) => (
+                        <span key={c.id} className="rounded bg-secondary px-1.5 py-0.5 text-[10px]">
+                          {ACTION_CARD_INFO[c.card_type as ActionCardType]?.emoji} {mascotName(c.target_mascot_id)}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+            </Panel>
           </div>
+
+          {/* Deck preview */}
+          <Panel title={`🎴 공용 레이스 덱 (${deckCards.length}장)`}>
+            <div className="flex flex-wrap gap-2">
+              {deckCards.length === 0 && (
+                <p className="text-sm text-muted-foreground">
+                  아직 카드가 없습니다. 팀이 조별 화면에서 카드를 덱에 추가합니다.
+                </p>
+              )}
+              {deckCards.map((c) => {
+                const info = ACTION_CARD_INFO[c.card_type as ActionCardType];
+                const mn = mascotName(c.target_mascot_id);
+                return (
+                  <div key={c.id} className="rounded-lg border border-border bg-secondary px-2 py-1 text-xs">
+                    <span>{info?.emoji}</span> {info?.label}
+                    <span className="ml-1 font-bold" style={{ color: CHARACTERS[mn].color }}>
+                      {mn}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </Panel>
         </div>
       )}
 
-      {/* PHASE 3 / finished */}
-      {(game.status === "phase3" || game.status === "finished") && (
+      {/* ── PHASE 3 ── */}
+      {game.status === "phase3" && (
         <div className="mt-6">
-          <h3 className="mb-3 font-display text-2xl">
-            {game.status === "finished" ? "🏁 경주 종료" : "페이즈3 — 레이싱"}
-          </h3>
+          <div className="mb-2 flex items-center gap-4">
+            <h3 className="font-display text-2xl">페이즈3 — 레이싱</h3>
+            {currentTurnTeam && (
+              <span
+                className="rounded-xl px-3 py-1 font-display text-lg"
+                style={{ backgroundColor: teamColor(currentTurnTeam.id) + "33", color: teamColor(currentTurnTeam.id) }}
+              >
+                현재 턴: {currentTurnTeam.name}
+              </span>
+            )}
+          </div>
+
+          {/* Effect flash */}
+          {effectMsg && (
+            <div className="animate-pop-in mb-4 rounded-2xl bg-primary/20 p-4 text-center font-display text-2xl text-primary ring-2 ring-primary">
+              {effectMsg}
+            </div>
+          )}
+
           <HostTrack mascots={mascots} />
+
+          {/* Deck cards — host sees what's in deck */}
+          <div className="mt-4 grid gap-4 md:grid-cols-2">
+            <Panel title={`🎴 레이스 덱 (${deckCards.length}장 남음)`}>
+              {deckCards.length === 0 ? (
+                <p className="text-sm text-muted-foreground">모든 카드가 공개됐습니다.</p>
+              ) : (
+                deckCards.map((c) => {
+                  const info = ACTION_CARD_INFO[c.card_type as ActionCardType];
+                  const mn = mascotName(c.target_mascot_id);
+                  const isPending = pendingCard?.id === c.id;
+                  return (
+                    <div
+                      key={c.id}
+                      className={`mb-2 flex items-center gap-2 rounded-lg border p-2 text-sm ${isPending ? "border-primary bg-primary/10" : "border-border bg-secondary"}`}
+                    >
+                      <span className="text-lg">{info?.emoji}</span>
+                      <span>{info?.label}</span>
+                      <span className="font-bold" style={{ color: CHARACTERS[mn].color }}>
+                        {mn}
+                      </span>
+                      {isPending && <span className="ml-auto text-xs text-primary">퀴즈 대기 중...</span>}
+                    </div>
+                  );
+                })
+              )}
+            </Panel>
+
+            {/* Phase3 quiz panel */}
+            <Panel title="📝 카드 퀴즈">
+              {pendingCard && phase3Q ? (
+                <>
+                  <div className="mb-2 text-sm text-muted-foreground">
+                    카드 효과:{" "}
+                    <span className="font-bold text-foreground">
+                      {ACTION_CARD_INFO[pendingCard.card_type as ActionCardType]?.label}
+                    </span>{" "}
+                    →{" "}
+                    <span
+                      className="font-bold"
+                      style={{ color: CHARACTERS[mascotName(pendingCard.target_mascot_id)].color }}
+                    >
+                      {mascotName(pendingCard.target_mascot_id)}
+                    </span>
+                  </div>
+                  <QuestionCard q={phase3Q} />
+                  <div className="mt-3 flex gap-2">
+                    <button
+                      onClick={() => resolvePhase3Card(true)}
+                      className="flex-1 rounded-xl bg-track py-3 font-display text-xl text-white"
+                    >
+                      ⭕ 정답 → 효과 발동
+                    </button>
+                    <button
+                      onClick={() => resolvePhase3Card(false)}
+                      className="flex-1 rounded-xl bg-destructive py-3 font-display text-xl text-white"
+                    >
+                      ❌ 오답
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  {deckCards.length > 0
+                    ? "조별 화면에서 카드를 선택하면 여기에 퀴즈가 표시됩니다."
+                    : "덱에 카드가 없습니다."}
+                </p>
+              )}
+            </Panel>
+          </div>
+
           <div className="mt-4 grid gap-4 md:grid-cols-2">
             <Panel title="팀 자금 & 순위">
               {[...teams]
@@ -634,6 +840,48 @@ function HostControl({
                     <span className="ml-auto text-muted-foreground">
                       {m.is_eliminated ? "실격" : `${m.position}칸`}
                     </span>
+                    {m.is_fallen && <span className="text-xs text-yellow-400">넘어짐</span>}
+                    {m.direction === "backward" && <span className="text-xs text-red-400">역주행</span>}
+                  </div>
+                ))}
+            </Panel>
+          </div>
+        </div>
+      )}
+
+      {/* ── FINISHED ── */}
+      {game.status === "finished" && (
+        <div className="mt-6">
+          <h3 className="mb-3 font-display text-3xl text-primary">🏁 경주 종료 & 최종 정산</h3>
+          <HostTrack mascots={mascots} />
+          <div className="mt-4 grid gap-4 md:grid-cols-2">
+            <Panel title="🏆 최종 순위 (자금 기준)">
+              {[...teams]
+                .sort((a, b) => b.money - a.money)
+                .map((t, i) => (
+                  <div key={t.id} className="flex items-center justify-between py-2">
+                    <span className="font-display text-xl">
+                      {i + 1}위 — {t.name}
+                    </span>
+                    <span className="font-display text-xl text-primary">💰 {t.money}</span>
+                  </div>
+                ))}
+            </Panel>
+            <Panel title="베팅 정산 결과">
+              {betting
+                .filter((b) => b.is_resolved && b.team_id)
+                .map((b) => (
+                  <div key={b.id} className="flex items-center gap-2 py-1 text-xs">
+                    <img src={CHARACTERS[mascotName(b.mascot_id)].image} className="h-5 w-5" alt="" />
+                    <span style={{ color: teamColor(b.team_id!) }}>{teamName(b.team_id!)}</span>
+                    <span>
+                      {b.target_rank}등 {b.is_risky ? "RISKY" : "SAFE"}
+                    </span>
+                    <span
+                      className={`ml-auto font-bold ${(b.payout ?? 0) > 0 ? "text-green-400" : (b.payout ?? 0) < 0 ? "text-red-400" : "text-muted-foreground"}`}
+                    >
+                      {(b.payout ?? 0) > 0 ? `+${b.payout}` : b.payout}
+                    </span>
                   </div>
                 ))}
             </Panel>
@@ -643,6 +891,8 @@ function HostControl({
     </div>
   );
 }
+
+/* ── sub-components ── */
 
 function PhaseBtn({ onClick, children }: { onClick: () => void; children: React.ReactNode }) {
   return (
@@ -689,8 +939,7 @@ function BettingGrid({
   mascots: Mascot[];
   teamColor: (id: string) => string;
 }) {
-  const mascotName = (id: string): MascotName =>
-    (mascots.find((m) => m.id === id)?.name as MascotName) ?? "CHILI";
+  const mascotName = (id: string): MascotName => (mascots.find((m) => m.id === id)?.name as MascotName) ?? "CHILI";
   return (
     <div className="space-y-3">
       {MASCOT_ORDER.map((mn) => {
