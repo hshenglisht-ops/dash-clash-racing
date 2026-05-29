@@ -126,7 +126,6 @@ function TeamPage() {
     );
   }
 
-  const teamIdx = 0;
   const mascotName = (id: string): MascotName =>
     (mascots.find((m) => m.id === id)?.name as MascotName) ?? "CHILI";
 
