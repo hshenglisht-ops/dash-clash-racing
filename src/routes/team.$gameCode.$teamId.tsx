@@ -70,8 +70,8 @@ function TeamPage() {
   useRealtime("mascots", game?.id, () => game && refreshAux(game.id));
   useRealtime("action_cards", game?.id, () => game && refreshAux(game.id));
 
-  // Get the current active question for phase1 (latest unused shown to all)
-  const activeQ = questions.filter((q) => !q.is_used).sort((a, b) => a.id.localeCompare(b.id))[0] ?? null;
+  // Get the current active question from what host selected
+  const activeQ = questions.find((q) => q.id === game?.active_question_id) ?? null;
 
   const checkFastest = useCallback(async () => {
     if (!activeQ) return;
@@ -430,7 +430,7 @@ function TeamPage() {
       )}
 
       {/* BUZZER — fixed bottom (phase1 only) */}
-      {game.status === "phase1" && activeQ && (
+      {game.status === "phase1" && activeQ && !activeQ.is_used && (
         <button
           onClick={buzz}
           disabled={buzzed}
