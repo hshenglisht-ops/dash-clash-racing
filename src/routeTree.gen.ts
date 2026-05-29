@@ -9,38 +9,82 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as JoinRouteImport } from './routes/join'
+import { Route as HostRouteImport } from './routes/host'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as TeamGameCodeTeamIdRouteImport } from './routes/team.$gameCode.$teamId'
 
+const JoinRoute = JoinRouteImport.update({
+  id: '/join',
+  path: '/join',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const HostRoute = HostRouteImport.update({
+  id: '/host',
+  path: '/host',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const TeamGameCodeTeamIdRoute = TeamGameCodeTeamIdRouteImport.update({
+  id: '/team/$gameCode/$teamId',
+  path: '/team/$gameCode/$teamId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/host': typeof HostRoute
+  '/join': typeof JoinRoute
+  '/team/$gameCode/$teamId': typeof TeamGameCodeTeamIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/host': typeof HostRoute
+  '/join': typeof JoinRoute
+  '/team/$gameCode/$teamId': typeof TeamGameCodeTeamIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/host': typeof HostRoute
+  '/join': typeof JoinRoute
+  '/team/$gameCode/$teamId': typeof TeamGameCodeTeamIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths: '/' | '/host' | '/join' | '/team/$gameCode/$teamId'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to: '/' | '/host' | '/join' | '/team/$gameCode/$teamId'
+  id: '__root__' | '/' | '/host' | '/join' | '/team/$gameCode/$teamId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  HostRoute: typeof HostRoute
+  JoinRoute: typeof JoinRoute
+  TeamGameCodeTeamIdRoute: typeof TeamGameCodeTeamIdRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/join': {
+      id: '/join'
+      path: '/join'
+      fullPath: '/join'
+      preLoaderRoute: typeof JoinRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/host': {
+      id: '/host'
+      path: '/host'
+      fullPath: '/host'
+      preLoaderRoute: typeof HostRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -48,22 +92,22 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/team/$gameCode/$teamId': {
+      id: '/team/$gameCode/$teamId'
+      path: '/team/$gameCode/$teamId'
+      fullPath: '/team/$gameCode/$teamId'
+      preLoaderRoute: typeof TeamGameCodeTeamIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  HostRoute: HostRoute,
+  JoinRoute: JoinRoute,
+  TeamGameCodeTeamIdRoute: TeamGameCodeTeamIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
