@@ -14,7 +14,333 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      action_cards: {
+        Row: {
+          card_type: string
+          game_id: string
+          id: string
+          is_in_deck: boolean
+          is_revealed: boolean
+          linked_question_id: string | null
+          owner_team_id: string | null
+          reveal_order: number | null
+          target_mascot_id: string | null
+        }
+        Insert: {
+          card_type: string
+          game_id: string
+          id?: string
+          is_in_deck?: boolean
+          is_revealed?: boolean
+          linked_question_id?: string | null
+          owner_team_id?: string | null
+          reveal_order?: number | null
+          target_mascot_id?: string | null
+        }
+        Update: {
+          card_type?: string
+          game_id?: string
+          id?: string
+          is_in_deck?: boolean
+          is_revealed?: boolean
+          linked_question_id?: string | null
+          owner_team_id?: string | null
+          reveal_order?: number | null
+          target_mascot_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "action_cards_game_id_fkey"
+            columns: ["game_id"]
+            isOneToOne: false
+            referencedRelation: "games"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "action_cards_linked_question_id_fkey"
+            columns: ["linked_question_id"]
+            isOneToOne: false
+            referencedRelation: "questions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "action_cards_owner_team_id_fkey"
+            columns: ["owner_team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "action_cards_target_mascot_id_fkey"
+            columns: ["target_mascot_id"]
+            isOneToOne: false
+            referencedRelation: "mascots"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      betting_cards: {
+        Row: {
+          game_id: string
+          id: string
+          is_resolved: boolean
+          is_risky: boolean
+          mascot_id: string
+          payout: number | null
+          target_rank: number
+          team_id: string | null
+        }
+        Insert: {
+          game_id: string
+          id?: string
+          is_resolved?: boolean
+          is_risky: boolean
+          mascot_id: string
+          payout?: number | null
+          target_rank: number
+          team_id?: string | null
+        }
+        Update: {
+          game_id?: string
+          id?: string
+          is_resolved?: boolean
+          is_risky?: boolean
+          mascot_id?: string
+          payout?: number | null
+          target_rank?: number
+          team_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "betting_cards_game_id_fkey"
+            columns: ["game_id"]
+            isOneToOne: false
+            referencedRelation: "games"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "betting_cards_mascot_id_fkey"
+            columns: ["mascot_id"]
+            isOneToOne: false
+            referencedRelation: "mascots"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "betting_cards_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      buzzer_events: {
+        Row: {
+          buzzed_at: string
+          game_id: string
+          id: string
+          is_correct: boolean | null
+          question_id: string
+          team_id: string
+        }
+        Insert: {
+          buzzed_at?: string
+          game_id: string
+          id?: string
+          is_correct?: boolean | null
+          question_id: string
+          team_id: string
+        }
+        Update: {
+          buzzed_at?: string
+          game_id?: string
+          id?: string
+          is_correct?: boolean | null
+          question_id?: string
+          team_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "buzzer_events_game_id_fkey"
+            columns: ["game_id"]
+            isOneToOne: false
+            referencedRelation: "games"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "buzzer_events_question_id_fkey"
+            columns: ["question_id"]
+            isOneToOne: false
+            referencedRelation: "questions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "buzzer_events_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      games: {
+        Row: {
+          created_at: string
+          current_turn_team_id: string | null
+          game_code: string
+          id: string
+          phase: number
+          status: string
+        }
+        Insert: {
+          created_at?: string
+          current_turn_team_id?: string | null
+          game_code: string
+          id?: string
+          phase?: number
+          status?: string
+        }
+        Update: {
+          created_at?: string
+          current_turn_team_id?: string | null
+          game_code?: string
+          id?: string
+          phase?: number
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "games_current_turn_team_fk"
+            columns: ["current_turn_team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      mascots: {
+        Row: {
+          direction: string
+          final_rank: number | null
+          game_id: string
+          id: string
+          is_eliminated: boolean
+          is_fallen: boolean
+          lane: number
+          name: string
+          position: number
+        }
+        Insert: {
+          direction?: string
+          final_rank?: number | null
+          game_id: string
+          id?: string
+          is_eliminated?: boolean
+          is_fallen?: boolean
+          lane?: number
+          name: string
+          position?: number
+        }
+        Update: {
+          direction?: string
+          final_rank?: number | null
+          game_id?: string
+          id?: string
+          is_eliminated?: boolean
+          is_fallen?: boolean
+          lane?: number
+          name?: string
+          position?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mascots_game_id_fkey"
+            columns: ["game_id"]
+            isOneToOne: false
+            referencedRelation: "games"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      questions: {
+        Row: {
+          choice_a: string
+          choice_b: string
+          choice_c: string
+          choice_d: string
+          correct_answer: string
+          game_id: string
+          id: string
+          is_used: boolean
+          phase: number
+          question_text: string
+        }
+        Insert: {
+          choice_a: string
+          choice_b: string
+          choice_c: string
+          choice_d: string
+          correct_answer: string
+          game_id: string
+          id?: string
+          is_used?: boolean
+          phase?: number
+          question_text: string
+        }
+        Update: {
+          choice_a?: string
+          choice_b?: string
+          choice_c?: string
+          choice_d?: string
+          correct_answer?: string
+          game_id?: string
+          id?: string
+          is_used?: boolean
+          phase?: number
+          question_text?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "questions_game_id_fkey"
+            columns: ["game_id"]
+            isOneToOne: false
+            referencedRelation: "games"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      teams: {
+        Row: {
+          created_at: string
+          game_id: string
+          id: string
+          money: number
+          name: string
+        }
+        Insert: {
+          created_at?: string
+          game_id: string
+          id?: string
+          money?: number
+          name: string
+        }
+        Update: {
+          created_at?: string
+          game_id?: string
+          id?: string
+          money?: number
+          name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "teams_game_id_fkey"
+            columns: ["game_id"]
+            isOneToOne: false
+            referencedRelation: "games"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
